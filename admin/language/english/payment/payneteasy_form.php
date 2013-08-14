@@ -13,8 +13,8 @@ $_['entry_production_gateway']          = 'Production gateway';
 $_['entry_gateway_mode']                = 'Gateway mode';
 $_['entry_order_success_status']        = 'Order success status';
 $_['entry_order_failure_status']        = 'Order failure status';
-$_['entry_payneteasy_form_status']      = 'Module status';
-$_['entry_payneteasy_form_sort_order']  = 'Module sort order';
+$_['entry_status']                      = 'Module status';
+$_['entry_sort_order']                  = 'Module sort order';
 
 $_['error_permission']                  = 'Warning: You do not have permission to modify payment PaynetEasy!';
 $_['error_end_point']                   = 'End point required!';

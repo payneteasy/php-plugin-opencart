@@ -30,9 +30,13 @@
                             <span class="required">*</span> <?php echo $entry_end_point; ?>
                         </td>
                         <td>
-                            <input type="text" name="end_point" value="<?php echo $end_point; ?>" />
-                            <?php if (isset($error_end_point)):?>
-                                <span class="error"><?php echo $error_end_point; ?></span>
+                            <input
+                                type="text"
+                                name="payneteasy_form_end_point"
+                                value="<?php echo $payneteasy_form_end_point; ?>"
+                            />
+                            <?php if (isset($error_payneteasy_form_end_point)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_end_point; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -41,9 +45,12 @@
                             <span class="required">*</span> <?php echo $entry_login; ?>
                         </td>
                         <td>
-                            <input type="text" name="login" value="<?php echo $login; ?>" />
-                            <?php if (isset($error_login)):?>
-                                <span class="error"><?php echo $error_login; ?></span>
+                            <input
+                                type="text" name="payneteasy_form_login"
+                                value="<?php echo $payneteasy_form_login; ?>"
+                            />
+                            <?php if (isset($error_payneteasy_form_login)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_login; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -52,9 +59,14 @@
                             <span class="required">*</span> <?php echo $entry_signing_key; ?>
                         </td>
                         <td>
-                            <input type="text" name="signing_key" value="<?php echo $signing_key; ?>" />
-                            <?php if (isset($error_signing_key)):?>
-                                <span class="error"><?php echo $error_signing_key; ?></span>
+                            <input
+                                type="text"
+                                name="payneteasy_form_signing_key"
+                                value="<?php echo $payneteasy_form_signing_key; ?>"
+                                size="50"
+                            />
+                            <?php if (isset($error_payneteasy_form_signing_key)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_signing_key; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -63,9 +75,14 @@
                             <span class="required">*</span> <?php echo $entry_sandbox_gateway; ?>
                         </td>
                         <td>
-                            <input type="text" name="sandbox_gateway" value="<?php echo $sandbox_gateway; ?>" />
-                            <?php if (isset($error_sandbox_gateway)):?>
-                                <span class="error"><?php echo $error_sandbox_gateway; ?></span>
+                            <input
+                                type="text"
+                                name="payneteasy_form_sandbox_gateway"
+                                value="<?php echo $payneteasy_form_sandbox_gateway; ?>"
+                                size="50"
+                            />
+                            <?php if (isset($error_payneteasy_form_sandbox_gateway)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_sandbox_gateway; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -74,9 +91,14 @@
                             <span class="required">*</span> <?php echo $entry_production_gateway; ?>
                         </td>
                         <td>
-                            <input type="text" name="production_gateway" value="<?php echo $production_gateway; ?>" />
-                            <?php if (isset($error_production_gateway)):?>
-                                <span class="error"><?php echo $error_production_gateway; ?></span>
+                            <input
+                                type="text"
+                                name="payneteasy_form_production_gateway"
+                                value="<?php echo $payneteasy_form_production_gateway; ?>"
+                                size="50"
+                            />
+                            <?php if (isset($error_payneteasy_form_production_gateway)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_production_gateway; ?></span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -85,16 +107,16 @@
                             <span class="required">*</span> <?php echo $entry_gateway_mode; ?>
                         </td>
                         <td>
-                            <select name="gateway_mode">
+                            <select name="payneteasy_form_gateway_mode">
                                     <option value="sandbox"
-                                        <?php if ($gateway_mode == 'sandbox'): ?>
+                                        <?php if ($payneteasy_form_gateway_mode == 'sandbox'): ?>
                                             selected="selected"
                                         <?php endif; ?>
                                     >
                                         Sandbox
                                     </option>
                                     <option value="production"
-                                        <?php if ($gateway_mode == 'production'): ?>
+                                        <?php if ($payneteasy_form_gateway_mode == 'production'): ?>
                                             selected="selected"
                                         <?php endif; ?>
                                     >
@@ -108,9 +130,9 @@
                             <span class="required">*</span> <?php echo $entry_order_success_status; ?>
                         </td>
                         <td>
-                            <select name="order_success_status">
+                            <select name="payneteasy_form_order_success_status">
                                 <?php foreach ($order_statuses as $order_status): ?>
-                                    <?php if ($order_status['order_status_id'] == $order_success_status): ?>
+                                    <?php if ($order_status['order_status_id'] == $payneteasy_form_order_success_status): ?>
                                         <option value="<?php echo $order_status['order_status_id']; ?>" selected="selected">
                                             <?php echo $order_status['name']; ?>
                                         </option>
@@ -128,9 +150,9 @@
                             <span class="required">*</span> <?php echo $entry_order_failure_status; ?>
                         </td>
                         <td>
-                            <select name="order_failure_status">
+                            <select name="payneteasy_form_order_failure_status">
                                 <?php foreach ($order_statuses as $order_status): ?>
-                                    <?php if ($order_status['order_status_id'] == $order_failure_status): ?>
+                                    <?php if ($order_status['order_status_id'] == $payneteasy_form_order_failure_status): ?>
                                         <option value="<?php echo $order_status['order_status_id']; ?>" selected="selected">
                                             <?php echo $order_status['name']; ?>
                                         </option>
@@ -145,7 +167,7 @@
                     </tr>
                     <tr>
                         <td>
-                            <span class="required">*</span> <?php echo $entry_payneteasy_form_status; ?>
+                            <span class="required">*</span> <?php echo $entry_status; ?>
                         </td>
                         <td>
                             <select name="payneteasy_form_status">
@@ -168,10 +190,15 @@
                     </tr>
                     <tr>
                         <td>
-                            <?php echo $entry_payneteasy_form_sort_order; ?>
+                            <?php echo $entry_sort_order; ?>
                         </td>
                         <td>
-                            <input type="text" name="sort_order" value="<?php echo $payneteasy_form_sort_order; ?>" size="1" />
+                            <input
+                                type="text"
+                                name="payneteasy_form_sort_order"
+                                value="<?php echo $payneteasy_form_sort_order; ?>"
+                                size="1"
+                            />
                         </td>
                     </tr>
                 </table>

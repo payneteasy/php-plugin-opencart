@@ -108,8 +108,8 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->setTemplatePhrase('entry_gateway_mode');
         $this->setTemplatePhrase('entry_order_success_status');
         $this->setTemplatePhrase('entry_order_failure_status');
-        $this->setTemplatePhrase('entry_payneteasy_form_status');
-        $this->setTemplatePhrase('entry_payneteasy_form_sort_order');
+        $this->setTemplatePhrase('entry_status');
+        $this->setTemplatePhrase('entry_sort_order');
     }
 
     /**
@@ -128,8 +128,8 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->setConfigValue('gateway_mode');
         $this->setConfigValue('order_success_status');
         $this->setConfigValue('order_failure_status');
-        $this->setConfigValue('payneteasy_form_status');
-        $this->setConfigValue('payneteasy_form_sort_order');
+        $this->setConfigValue('status');
+        $this->setConfigValue('sort_order');
     }
 
     /**
@@ -145,17 +145,19 @@ class ControllerPaymentPaynetEasyForm extends Controller
     /**
      * Set template form value for edit config page
      *
-     * @param       string      $config_key     Config key
+     * @param       string      $key        Config key
      */
-    protected function setConfigValue($config_key)
+    protected function setConfigValue($key)
     {
-        if (isset($this->request->post[$config_key]))
+        $full_key = "payneteasy_form_{$key}";
+
+        if (isset($this->request->post[$full_key]))
         {
-			$this->data[$config_key] = $this->request->post[$config_key];
+			$this->data[$full_key] = $this->request->post[$full_key];
 		}
         else
         {
-			$this->data[$config_key] = $this->config->get($config_key);
+			$this->data[$full_key] = $this->config->get($full_key);
 		}
     }
 
@@ -202,9 +204,12 @@ class ControllerPaymentPaynetEasyForm extends Controller
      */
     protected function assertNotEmpty($key)
     {
-		if (empty($this->request->post[$key]))
+        $full_key   = "payneteasy_form_{$key}";
+        $error_key  = "error_{$full_key}";
+
+		if (empty($this->request->post[$full_key]))
         {
-			$this->error[$key] = $this->language->get("error_{$key}");
+			$this->error[$full_key] = $this->language->get($error_key);
 		}
     }
 }
