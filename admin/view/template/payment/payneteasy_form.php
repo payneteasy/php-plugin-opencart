@@ -27,6 +27,21 @@
                 <table class="form">
                     <tr>
                         <td>
+                            <span class="required">*</span> <?php echo $entry_checkout_title; ?>
+                        </td>
+                        <td>
+                            <input
+                                type="text"
+                                name="payneteasy_form_checkout_title"
+                                value="<?php echo $payneteasy_form_checkout_title; ?>"
+                            />
+                            <?php if (isset($error_payneteasy_form_checkout_title)):?>
+                                <span class="error"><?php echo $error_payneteasy_form_checkout_title; ?></span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
                             <span class="required">*</span> <?php echo $entry_end_point; ?>
                         </td>
                         <td>

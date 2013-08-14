@@ -66,6 +66,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
 			$this->error['warning'] = $this->language->get('error_permission');
 		}
 
+        $this->assertNotEmpty('checkout_title');
         $this->assertNotEmpty('end_point');
         $this->assertNotEmpty('login');
         $this->assertNotEmpty('signing_key');
@@ -100,6 +101,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->setTemplatePhrase('button_save');
         $this->setTemplatePhrase('button_cancel');
 
+        $this->setTemplatePhrase('entry_checkout_title');
         $this->setTemplatePhrase('entry_end_point');
         $this->setTemplatePhrase('entry_login');
         $this->setTemplatePhrase('entry_signing_key');
@@ -120,6 +122,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->load->model('localisation/order_status');
         $this->data['order_statuses'] = $this->model_localisation_order_status->getOrderStatuses();
 
+        $this->setConfigValue('checkout_title');
         $this->setConfigValue('end_point');
         $this->setConfigValue('login');
         $this->setConfigValue('signing_key');

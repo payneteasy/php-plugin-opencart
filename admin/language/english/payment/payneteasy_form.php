@@ -5,6 +5,7 @@ $_['text_payment']                      = 'Payment';
 $_['text_payneteasy_form']              = '<a href="https://payneteasy.com" taget="_blank"><img src="view/image/payment/payneteasy.png" alt="PaynetEasy" title="PaynetEasy" style="border: 1px solid #EEEEEE;" /></a>';
 $_['text_success']                      = 'Success: You have modified PaynetEasy config!';
 
+$_['entry_checkout_title']              = 'Title for checkout';
 $_['entry_end_point']                   = 'End point';
 $_['entry_login']                       = 'Login';
 $_['entry_signing_key']                 = 'Signing key';
@@ -17,6 +18,7 @@ $_['entry_status']                      = 'Module status';
 $_['entry_sort_order']                  = 'Module sort order';
 
 $_['error_permission']                  = 'Warning: You do not have permission to modify payment PaynetEasy!';
+$_['error_checkout_title']              = 'Title for checkout required!';
 $_['error_end_point']                   = 'End point required!';
 $_['error_login']                       = 'Login required!';
 $_['error_signing_key']                 = 'Signing key required!';
