@@ -20,7 +20,6 @@ class ControllerPaymentPaynetEasyForm extends Controller
 
 		$this->load->model('setting/setting');
         $this->load->model('setting/extension');
-//        $this->load->model('payment/payneteasy_form');
 
 		if (($this->request->server['REQUEST_METHOD'] == 'POST') && $this->validate())
         {
@@ -76,6 +75,24 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->assertNotEmpty('order_failure_status');
 
         return empty($this->error);
+    }
+
+    /**
+     * Install module to system
+     */
+    public function install()
+    {
+        $this->load->model('payment/payneteasy_form');
+        $this->model_payment_payneteasy_form->install();
+    }
+
+    /**
+     * Uninstall module from system
+     */
+    public function uninstall()
+    {
+        $this->load->model('payment/payneteasy_form');
+        $this->model_payment_payneteasy_form->uninstall();
     }
 
     /**
@@ -168,11 +185,11 @@ class ControllerPaymentPaynetEasyForm extends Controller
     /**
      * Set template breadcrubm
      *
-     * @param       string      $phrase_key     Breadcrumb phrase key
-     * @param       string      $route          Breadcrumb route
-     * @param       string      $separator      Breadcrumbs separator
+     * @param       string      $phrase_key         Breadcrumb phrase key
+     * @param       string      $route              Breadcrumb route
+     * @param       boolean     $add_separator      Add breadcrumbs separator or not
      */
-    protected function setTemplateBreadcrumb($phrase_key, $route, $separator = ' :: ')
+    protected function setTemplateBreadcrumb($phrase_key, $route, $add_separator = true)
     {
         if (!isset($this->data['breadcrumbs']) || !is_array($this->data['breadcrumbs']))
         {
@@ -183,10 +200,10 @@ class ControllerPaymentPaynetEasyForm extends Controller
         (
        		'text'      => $this->language->get($phrase_key),
 			'href'      => $this->getSecureLink($route),
-      		'separator' => $separator
+      		'separator' => $add_separator ? $this->language->get('text_separator') : false
    		);
     }
-
+    
     /**
      * Get secure (with token and https) link
      *
