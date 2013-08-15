@@ -2,15 +2,17 @@
 
 require_once DIR_SYSTEM . '../vendor/autoload.php';
 
-use PaynetEasy\PaynetEasyApi\PaymentData\PaymentTransaction as PaynetTransaction;
-use PaynetEasy\PaynetEasyApi\PaymentData\Payment            as PaynetPayment;
-use PaynetEasy\PaynetEasyApi\PaymentData\Customer           as PaynetCustomer;
-use PaynetEasy\PaynetEasyApi\PaymentData\BillingAddress     as PaynetAddress;
+use PaynetEasy\PaynetEasyApi\PaymentData\PaymentTransaction;
+use PaynetEasy\PaynetEasyApi\PaymentData\Payment;
+use PaynetEasy\PaynetEasyApi\PaymentData\Customer;
+use PaynetEasy\PaynetEasyApi\PaymentData\BillingAddress;
 
 use PaynetEasy\PaynetEasyApi\Utils\Validator;
 use PaynetEasy\PaynetEasyApi\PaymentData\QueryConfig;
+use PaynetEasy\PaynetEasyApi\Transport\CallbackResponse;
 
 use PaynetEasy\PaynetEasyApi\PaymentProcessor;
+use PaynetEasy\PaynetEasyApi\Exception\ResponseException;
 
 class ModelPaymentPayneteasyForm extends Model
 {
@@ -44,7 +46,6 @@ class ModelPaymentPayneteasyForm extends Model
      */
     public function startSale($order_id, $redirect_url)
     {
-        $this->language->load('payment/payneteasy_form');
         $this->load->model('checkout/order');
 
         $opencart_order     = $this->model_checkout_order->getOrder($order_id);
@@ -63,18 +64,79 @@ class ModelPaymentPayneteasyForm extends Model
             throw $e;
         }
 
-        $this->savePaynetPaymentIds($paynet_transaction->getPayment());
+        $this->savePaymentIds($paynet_transaction->getPayment());
 
         return $response;
     }
 
-    public function finishSale()
+    /**
+     * Finish order processing.
+     * Method checks callback data and returns object with them.
+     * After that order processing result can be displayed.
+     *
+     * @param       integer     $order_id           Order ID
+     * @param       array       $callback_data      Callback data from Paynet
+     *
+     * @return      CallbackResponse                Callback object
+     */
+    public function finishSale($order_id, array $callback_data)
     {
+        $this->load->model('checkout/order');
+
+        $opencart_order     = $this->model_checkout_order->getOrder($order_id);
+
+        if (empty($opencart_order))
+        {
+            throw new ResponseException("Order with id '{$order_id}' not found");
+        }
+
+        $paynet_transaction = $this->getPaynetTransaction($opencart_order);
+        $paynet_transaction->setStatus(PaymentTransaction::STATUS_PROCESSING);
+        $this->loadPaymentIds($paynet_transaction->getPayment());
+
+        try
+        {
+            $callback_response = $this
+                ->getPaymentProcessor()
+                ->processCustomerReturn(new CallbackResponse($callback_data), $paynet_transaction)
+            ;
+        }
+        catch (Exception $e)
+        {
+            $this->cancelOrder($opencart_order, "Order '{$order_id}' cancelled, error occured");
+            throw $e;
+        }
+
+        if ($paynet_transaction->isApproved())
+        {
+            $this->completeOrder($opencart_order);
+        }
+        else
+        {
+            $this->cancelOrder($opencart_order, $paynet_transaction->getLastError()->getMessage());
+        }
+
+        return $callback_response;
+    }
+
+    /**
+     * Set order status to "payment success"
+     *
+     * @param       array       $opencart_order     OpenCart order
+     */
+    protected function completeOrder(array $opencart_order)
+    {
+        $order_id   = $opencart_order['order_id'];
+        $status_id  = $this->getModuleConfigValue('order_success_status');
+
+        $this
+            ->model_checkout_order
+            ->update($order_id, $status_id)
         ;
     }
 
     /**
-     * Cancel order
+     * Set order status to "payment failed"
      *
      * @param       array       $opencart_order     OpenCart order
      * @param       string      $message            Error message
@@ -96,7 +158,7 @@ class ModelPaymentPayneteasyForm extends Model
      *
      * @param       Payment         $payment        Paynet payment
      */
-    protected function savePaynetPaymentIds(Payment $payment)
+    protected function savePaymentIds(Payment $payment)
     {
         $this->db->query
         ("
@@ -104,6 +166,32 @@ class ModelPaymentPayneteasyForm extends Model
             SET `paynet_id` = '{$this->db->escape($payment->getPaynetId())}',
                 `client_id` = '{$this->db->escape($payment->getClientId())}'
         ");
+    }
+
+    /**
+     * Load paynet payment paynet_id from database.
+     *
+     * @param       Payment         $payment        Paynet payment
+     *
+     * @throws      RuntimeException                Can not found paynet_id for payment client_id
+     */
+    protected function loadPaymentIds(Payment $payment)
+    {
+        $client_id = $payment->getClientId();
+
+        $result = $this->db->query
+        ("
+            SELECT `paynet_id`
+            FROM `" . DB_PREFIX . "payneteasy_form_payment`
+            WHERE `client_id` = '{$this->db->escape($client_id)}'
+        ");
+
+        if (empty($result->row))
+        {
+            throw new RuntimeException("Can not find 'paynet_id' for Payment with 'client_id' = {$client_id}");
+        }
+
+        $payment->setPaynetId($result->row['paynet_id']);
     }
 
     /**
@@ -117,10 +205,10 @@ class ModelPaymentPayneteasyForm extends Model
     protected function getPaynetTransaction(array $opencart_order, $redirect_url = null)
     {
         $query_config        = new QueryConfig;
-        $paynet_address      = new PaynetAddress;
-        $paynet_transaction  = new PaynetTransaction;
-        $paynet_payment      = new PaynetPayment;
-        $paynet_customer     = new PaynetCustomer;
+        $paynet_address      = new BillingAddress;
+        $paynet_transaction  = new PaymentTransaction;
+        $paynet_payment      = new Payment;
+        $paynet_customer     = new Customer;
 
         $paynet_address
             ->setCountry($opencart_order['payment_iso_code_2'])
@@ -181,6 +269,8 @@ class ModelPaymentPayneteasyForm extends Model
      */
     protected function getPaynetPaymentDescription(array $opencart_order)
     {
+        $this->language->load('payment/payneteasy_form');
+
         return  "{$this->language->get('shopping_in')} {$this->getConfigValue('config_name')}; " .
                 "{$this->language->get('order_id')}: {$opencart_order['order_id']}";
     }

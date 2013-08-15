@@ -27,6 +27,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
             $this->redirect($this->getSecureLink('checkout/cart'));
         }
 
+        $this->language->load('payment/payneteasy_form');
         $this->load->model('payment/payneteasy_form');
 
         $order_id       = $this->session->data['order_id'];
@@ -48,9 +49,40 @@ class ControllerPaymentPaynetEasyForm extends Controller
         }
     }
 
+    /**
+     * Receive paynet callback data, finish order processing
+     * and redirect to page with payment result
+     */
     public function finish()
     {
-        ;
+        $this->language->load('payment/payneteasy_form');
+        $this->load->model('payment/payneteasy_form');
+
+        $order_id = $this->request->get['order_id'];
+        $callback = $_REQUEST;
+
+        try
+        {
+            $response = $this
+                ->model_payment_payneteasy_form
+                ->finishSale($order_id, $callback)
+            ;
+        }
+        catch (Exception $exception)
+        {
+            $this->logException($exception);
+            $this->errorRedirect('text_technical_error');
+        }
+
+        if ($response->isApproved())
+        {
+            $this->successRedirect();
+        }
+        else
+        {
+            $this->log->write('Callback data: ' . print_r($callback, true));
+            $this->errorRedirect('text_payment_not_passed');
+        }
     }
 
     /**
@@ -83,6 +115,14 @@ class ControllerPaymentPaynetEasyForm extends Controller
         );
 
         $this->response->setOutput($this->render());
+    }
+
+    /**
+     * Redirect to page with success message
+     */
+    protected function successRedirect()
+    {
+        $this->redirect($this->getSecureLink('checkout/success'));
     }
 
     /**
@@ -203,6 +243,6 @@ class ControllerPaymentPaynetEasyForm extends Controller
      */
     protected function getSecureLink($route, $params = '')
     {
-        return $this->url->link($route, $params, 'SSL');
+        return str_replace('&amp;', '&', $this->url->link($route, $params, 'SSL'));
     }
 }
