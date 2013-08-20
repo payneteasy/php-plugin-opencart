@@ -3,7 +3,7 @@
 class ModelPaymentPayneteasyForm extends Model
 {
     /**
-     * Create table for paynet payment ids
+     * Create table for PaynetEasy payment ids
      */
     public function install()
     {
@@ -19,7 +19,7 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
-     * Delete table for paynet payment ids
+     * Delete table for PaynetEasy payment ids
      */
     public function uninstall()
     {

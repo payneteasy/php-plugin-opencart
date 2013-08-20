@@ -36,7 +36,7 @@ class ModelPaymentPayneteasyForm extends Model
 
     /**
      * Starts order processing.
-     * Method executes query to paynet gateway and returns response from gateway.
+     * Method executes query to PaynetEasy gateway and returns response from gateway.
      * After that user must be redirected to the Response::getRedirectUrl()
      *
      * @param       integer                         $order_id               Order ID
@@ -153,10 +153,10 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
-     * Save paynet payment ids to database.
-     * Paynet id and client id will be saved.
+     * Save PaynetEasy payment ids to database.
+     * PaynetEasy id and client id will be saved.
      *
-     * @param       Payment         $payment        Paynet payment
+     * @param       Payment         $payment        PaynetEasy payment
      */
     protected function savePaymentIds(Payment $payment)
     {
@@ -169,9 +169,9 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
-     * Load paynet payment paynet_id from database.
+     * Load PaynetEasy payment paynet_id from database.
      *
-     * @param       Payment         $payment        Paynet payment
+     * @param       Payment         $payment        PaynetEasy payment
      *
      * @throws      RuntimeException                Can not found paynet_id for payment client_id
      */
@@ -195,12 +195,12 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
-     * Get Paynet payment transaction object by OpenCart order data array
+     * Get PaynetEasy payment transaction object by OpenCart order data array
      *
      * @param       MageOrder       $mageOrder          Magento order
      * @param       string          $redirectUrl        Url for final payment processing
      *
-     * @return      PaynetTransaction                   Paynet payment transaction
+     * @return      PaynetTransaction                   PaynetEasy payment transaction
      */
     protected function getPaynetTransaction(array $opencart_order, $redirect_url = null)
     {
@@ -261,11 +261,11 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
-     * Get paynet order description by opencart order
+     * Get PaynetEasy order description by opencart order
      *
      * @param       array       $opencart_order     Magento order
      *
-     * @return      string                          Paynet order description
+     * @return      string                          PaynetEasy order description
      */
     protected function getPaynetPaymentDescription(array $opencart_order)
     {

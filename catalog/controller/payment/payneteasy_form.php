@@ -50,7 +50,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
     }
 
     /**
-     * Receive paynet callback data, finish order processing
+     * Receive PaynetEasy callback data, finish order processing
      * and redirect to page with payment result
      */
     public function finish()
