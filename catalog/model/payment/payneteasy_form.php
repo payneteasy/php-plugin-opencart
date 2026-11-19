@@ -7,7 +7,7 @@ use PaynetEasy\PaynetEasyApi\PaymentData\Payment;
 use PaynetEasy\PaynetEasyApi\PaymentData\Customer;
 use PaynetEasy\PaynetEasyApi\PaymentData\BillingAddress;
 
-use PaynetEasy\PaynetEasyApi\Utils\Validator;
+use PaynetEasy\PaynetEasyApi\Util\Validator;
 use PaynetEasy\PaynetEasyApi\PaymentData\QueryConfig;
 use PaynetEasy\PaynetEasyApi\Transport\CallbackResponse;
 
@@ -252,8 +252,13 @@ class ModelPaymentPayneteasyForm extends Model
             ->setFirstLine($opencart_order['payment_address_1'])
             ->setZipCode($opencart_order['payment_postcode'])
             ->setPhone($opencart_order['telephone'])
-            ->setState($opencart_order['payment_zone_code'])
         ;
+
+        // The gateway accepts only US and Canada state codes
+        if (Validator::validateByRule($opencart_order['payment_zone_code'], Validator::STATE, false))
+        {
+            $paynet_address->setState($opencart_order['payment_zone_code']);
+        }
 
         $paynet_customer
             ->setEmail($opencart_order['email'])
