@@ -49,6 +49,9 @@ class ModelPaymentPayneteasyForm extends Model
         $this->load->model('checkout/order');
 
         $opencart_order     = $this->model_checkout_order->getOrder($order_id);
+
+        $this->assertOwnOrder($opencart_order, $order_id);
+
         $paynet_transaction = $this->getPaynetTransaction($opencart_order, $redirect_url);
 
         try
@@ -85,27 +88,25 @@ class ModelPaymentPayneteasyForm extends Model
 
         $opencart_order     = $this->model_checkout_order->getOrder($order_id);
 
-        if (empty($opencart_order))
+        $this->assertOwnOrder($opencart_order, $order_id);
+
+        $callback_response  = new CallbackResponse($callback_data);
+
+        // Only an order waiting for payment changes its state
+        if (!$this->isAwaitingPayment($opencart_order))
         {
-            throw new ResponseException("Order with id '{$order_id}' not found");
+            return $callback_response;
         }
 
         $paynet_transaction = $this->getPaynetTransaction($opencart_order);
         $paynet_transaction->setStatus(PaymentTransaction::STATUS_PROCESSING);
         $this->loadPaymentIds($paynet_transaction->getPayment());
 
-        try
-        {
-            $callback_response = $this
-                ->getPaymentProcessor()
-                ->processCustomerReturn(new CallbackResponse($callback_data), $paynet_transaction)
-            ;
-        }
-        catch (Exception $e)
-        {
-            $this->cancelOrder($opencart_order, "Order '{$order_id}' cancelled, error occured");
-            throw $e;
-        }
+        // Invalid data: the exception is passed on, the order is not changed
+        $callback_response = $this
+            ->getPaymentProcessor()
+            ->processCustomerReturn($callback_response, $paynet_transaction)
+        ;
 
         if ($paynet_transaction->isApproved())
         {
@@ -120,6 +121,37 @@ class ModelPaymentPayneteasyForm extends Model
     }
 
     /**
+     * Checks that the order exists and is paid with this payment method
+     *
+     * @param       array|false     $opencart_order     OpenCart order
+     * @param       mixed           $order_id           Order ID from the request
+     *
+     * @throws      ResponseException
+     */
+    protected function assertOwnOrder($opencart_order, $order_id)
+    {
+        if (    empty($opencart_order)
+            ||  !isset($opencart_order['payment_code'])
+            ||  $opencart_order['payment_code'] !== 'payneteasy_form')
+        {
+            throw new ResponseException("Order with id '" . (int) $order_id . "' not found");
+        }
+    }
+
+    /**
+     * True, if the order has not got a payment result yet
+     *
+     * @param       array       $opencart_order     OpenCart order
+     *
+     * @return      boolean
+     */
+    protected function isAwaitingPayment(array $opencart_order)
+    {
+        // The order gets its first status only from the payment result
+        return (int) $opencart_order['order_status_id'] === 0;
+    }
+
+    /**
      * Set order status to "payment success"
      *
      * @param       array       $opencart_order     OpenCart order
@@ -129,10 +161,14 @@ class ModelPaymentPayneteasyForm extends Model
         $order_id   = $opencart_order['order_id'];
         $status_id  = $this->getModuleConfigValue('order_success_status');
 
-        $this
-            ->model_checkout_order
-            ->update($order_id, $status_id)
-        ;
+        if ((int) $opencart_order['order_status_id'] === 0)
+        {
+            $this->model_checkout_order->confirm($order_id, $status_id);
+        }
+        else
+        {
+            $this->model_checkout_order->update($order_id, $status_id);
+        }
     }
 
     /**
