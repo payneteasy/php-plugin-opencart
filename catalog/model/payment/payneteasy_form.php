@@ -270,7 +270,7 @@ class ModelPaymentPayneteasyForm extends Model
         $paynet_payment
             ->setClientId($opencart_order['order_id'])
             ->setDescription($this->getPaynetPaymentDescription($opencart_order))
-            ->setAmount($opencart_order['total'])
+            ->setAmount($this->getOrderAmount($opencart_order))
             ->setCurrency($opencart_order['currency_code'])
             ->setCustomer($paynet_customer)
             ->setBillingAddress($paynet_address)
@@ -299,6 +299,27 @@ class ModelPaymentPayneteasyForm extends Model
         ;
 
         return $paynet_transaction;
+    }
+
+    /**
+     * Order total in the order currency.
+     * OpenCart stores the total in the default currency.
+     *
+     * @param       array       $opencart_order     OpenCart order
+     *
+     * @return      string
+     */
+    protected function getOrderAmount(array $opencart_order)
+    {
+        return number_format(
+            (float) $this->currency->format(
+                $opencart_order['total'],
+                $opencart_order['currency_code'],
+                $opencart_order['currency_value'],
+                false
+            ),
+            2, '.', ''
+        );
     }
 
     /**
