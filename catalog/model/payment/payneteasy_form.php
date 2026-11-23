@@ -52,6 +52,12 @@ class ModelPaymentPayneteasyForm extends Model
 
         $this->assertOwnOrder($opencart_order, $order_id);
 
+        // A payment is started only for an order without a payment result
+        if (!$this->isAwaitingPayment($opencart_order))
+        {
+            throw new ResponseException("Order with id '" . (int) $order_id . "' already has a payment result");
+        }
+
         $paynet_transaction = $this->getPaynetTransaction($opencart_order, $redirect_url);
 
         try
@@ -80,7 +86,7 @@ class ModelPaymentPayneteasyForm extends Model
      * @param       integer     $order_id           Order ID
      * @param       array       $callback_data      Callback data from Paynet
      *
-     * @return      CallbackResponse                Callback object
+     * @return      CallbackResponse|null           Callback object, null if the order already has a payment result
      */
     public function finishSale($order_id, array $callback_data)
     {
@@ -90,17 +96,21 @@ class ModelPaymentPayneteasyForm extends Model
 
         $this->assertOwnOrder($opencart_order, $order_id);
 
-        $callback_response  = new CallbackResponse($callback_data);
-
-        // Only an order waiting for payment changes its state
+        // Only an order waiting for payment changes its state,
+        // the request data is not used for other orders
         if (!$this->isAwaitingPayment($opencart_order))
         {
-            return $callback_response;
+            return null;
         }
+
+        $callback_response  = new CallbackResponse($callback_data);
 
         $paynet_transaction = $this->getPaynetTransaction($opencart_order);
         $paynet_transaction->setStatus(PaymentTransaction::STATUS_PROCESSING);
-        $this->loadPaymentIds($paynet_transaction->getPayment());
+        $this->loadPaymentIds(
+            $paynet_transaction->getPayment(),
+            isset($callback_data['orderid']) ? (string) $callback_data['orderid'] : ''
+        );
 
         // Invalid data: the exception is passed on, the order is not changed
         $callback_response = $this
@@ -136,6 +146,24 @@ class ModelPaymentPayneteasyForm extends Model
         {
             throw new ResponseException("Order with id '" . (int) $order_id . "' not found");
         }
+    }
+
+    /**
+     * True, if the order is paid: it has the success status of this module
+     *
+     * @param       integer     $order_id       Order ID
+     *
+     * @return      boolean
+     */
+    public function isPaidOrder($order_id)
+    {
+        $this->load->model('checkout/order');
+
+        $opencart_order = $this->model_checkout_order->getOrder($order_id);
+
+        return  !empty($opencart_order)
+            &&  $opencart_order['payment_code'] === 'payneteasy_form'
+            &&  (int) $opencart_order['order_status_id'] === (int) $this->getModuleConfigValue('order_success_status');
     }
 
     /**
@@ -206,12 +234,15 @@ class ModelPaymentPayneteasyForm extends Model
 
     /**
      * Load PaynetEasy payment paynet_id from database.
+     * The order may have several payment attempts: the one named
+     * by the gateway is taken, if it belongs to this order.
      *
      * @param       Payment         $payment        PaynetEasy payment
+     * @param       string          $paynet_id      PaynetEasy payment id from the gateway data
      *
      * @throws      RuntimeException                Can not found paynet_id for payment client_id
      */
-    protected function loadPaymentIds(Payment $payment)
+    protected function loadPaymentIds(Payment $payment, $paynet_id)
     {
         $client_id = $payment->getClientId();
 
@@ -220,11 +251,12 @@ class ModelPaymentPayneteasyForm extends Model
             SELECT `paynet_id`
             FROM `" . DB_PREFIX . "payneteasy_form_payment`
             WHERE `client_id` = '{$this->db->escape($client_id)}'
+              AND `paynet_id` = '{$this->db->escape($paynet_id)}'
         ");
 
-        if (empty($result->row))
+        if ($paynet_id === '' || empty($result->row))
         {
-            throw new RuntimeException("Can not find 'paynet_id' for Payment with 'client_id' = {$client_id}");
+            throw new RuntimeException("Can not find payment '" . (int) $paynet_id . "' for order '" . (int) $client_id . "'");
         }
 
         $payment->setPaynetId($result->row['paynet_id']);
