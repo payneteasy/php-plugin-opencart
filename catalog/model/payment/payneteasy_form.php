@@ -343,6 +343,10 @@ class ModelPaymentPayneteasyForm extends Model
      */
     protected function getOrderAmount(array $opencart_order)
     {
+        // As many decimals as the currency has (none for JPY), but not more than two:
+        // the request signature uses the amount multiplied by 100
+        $decimals = min(2, max(0, (int) $this->currency->getDecimalPlace($opencart_order['currency_code'])));
+
         return number_format(
             (float) $this->currency->format(
                 $opencart_order['total'],
@@ -350,7 +354,7 @@ class ModelPaymentPayneteasyForm extends Model
                 $opencart_order['currency_value'],
                 false
             ),
-            2, '.', ''
+            $decimals, '.', ''
         );
     }
 
