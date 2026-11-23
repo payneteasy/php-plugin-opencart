@@ -58,7 +58,7 @@ class ControllerPaymentPaynetEasyForm extends Controller
         $this->language->load('payment/payneteasy_form');
         $this->load->model('payment/payneteasy_form');
 
-        $order_id = $this->request->get['order_id'];
+        $order_id = isset($this->request->get['order_id']) ? (int) $this->request->get['order_id'] : 0;
         $callback = $_REQUEST;
 
         try
@@ -74,7 +74,28 @@ class ControllerPaymentPaynetEasyForm extends Controller
             $this->errorRedirect('text_technical_error');
         }
 
-        if ($response->isApproved())
+        // The order already has a payment result (repeated return or callback):
+        // the result is taken from the order, the customer of this order
+        // goes to the result page, anybody else to the home page
+        if ($response === null)
+        {
+            $own_order = isset($this->session->data['order_id'])
+                      && (int) $this->session->data['order_id'] === $order_id;
+
+            if (!$own_order)
+            {
+                $this->redirect($this->getSecureLink('common/home'));
+            }
+            elseif ($this->model_payment_payneteasy_form->isPaidOrder($order_id))
+            {
+                $this->successRedirect();
+            }
+            else
+            {
+                $this->errorRedirect('text_payment_not_passed');
+            }
+        }
+        elseif ($response->isApproved())
         {
             $this->successRedirect();
         }
