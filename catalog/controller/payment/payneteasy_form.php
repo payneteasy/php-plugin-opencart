@@ -101,7 +101,8 @@ class ControllerPaymentPaynetEasyForm extends Controller
         }
         else
         {
-            $this->log->write('Callback data: ' . print_r($callback, true));
+            $this->log->write("PaynetEasy: payment of order {$order_id} is not approved, status '" .
+                              preg_replace('/[^a-z_-]/i', '', (string) $response->getStatus()) . "'");
             $this->errorRedirect('text_payment_not_passed');
         }
     }
@@ -251,7 +252,8 @@ class ControllerPaymentPaynetEasyForm extends Controller
      */
     protected function logException(Exception $exception)
     {
-        $this->log->write((string) $exception);
+        // Short facts only: no stack trace with request data
+        $this->log->write('PaynetEasy: ' . get_class($exception) . ': ' . $exception->getMessage());
     }
 
     /**

@@ -90,6 +90,30 @@ class ModelPaymentPayneteasyForm extends Model
      */
     public function finishSale($order_id, array $callback_data)
     {
+        // The customer return and the gateway callback may come at the same time:
+        // the order is checked and updated by one request at a time
+        $this->lockOrder($order_id);
+
+        try
+        {
+            return $this->finishLockedSale($order_id, $callback_data);
+        }
+        finally
+        {
+            $this->unlockOrder($order_id);
+        }
+    }
+
+    /**
+     * Checks callback data and updates the order. Runs under the order lock.
+     *
+     * @param       integer     $order_id           Order ID
+     * @param       array       $callback_data      Callback data from Paynet
+     *
+     * @return      CallbackResponse|null           Callback object, null if the order already has a payment result
+     */
+    protected function finishLockedSale($order_id, array $callback_data)
+    {
         $this->load->model('checkout/order');
 
         $opencart_order     = $this->model_checkout_order->getOrder($order_id);
@@ -100,6 +124,8 @@ class ModelPaymentPayneteasyForm extends Model
         // the request data is not used for other orders
         if (!$this->isAwaitingPayment($opencart_order))
         {
+            $this->noteUnexpectedPayment($opencart_order, $callback_data);
+
             return null;
         }
 
@@ -121,6 +147,11 @@ class ModelPaymentPayneteasyForm extends Model
         if ($paynet_transaction->isApproved())
         {
             $this->completeOrder($opencart_order);
+            $this->addOrderNote(
+                $opencart_order['order_id'],
+                $this->getModuleConfigValue('order_success_status'),
+                $this->getPaymentNotePrefix($paynet_transaction->getPayment()->getPaynetId()) . 'approved'
+            );
         }
         else
         {
@@ -128,6 +159,184 @@ class ModelPaymentPayneteasyForm extends Model
         }
 
         return $callback_response;
+    }
+
+    /**
+     * Adds a note to the history of an order that already has a payment result,
+     * when the gateway reports one more approved payment of this order.
+     * Invalid data and repeated reports of a known payment add nothing.
+     *
+     * @param       array       $opencart_order     OpenCart order
+     * @param       array       $callback_data      Callback data from Paynet
+     */
+    protected function noteUnexpectedPayment(array $opencart_order, array $callback_data)
+    {
+        try
+        {
+            $paynet_transaction = $this->getPaynetTransaction($opencart_order);
+            $paynet_transaction->setStatus(PaymentTransaction::STATUS_PROCESSING);
+            $this->loadPaymentIds(
+                $paynet_transaction->getPayment(),
+                isset($callback_data['orderid']) && is_scalar($callback_data['orderid']) ? (string) $callback_data['orderid'] : ''
+            );
+
+            $this
+                ->getPaymentProcessor()
+                ->processCustomerReturn(new CallbackResponse($callback_data), $paynet_transaction)
+            ;
+        }
+        catch (Exception $e)
+        {
+            return;
+        }
+
+        $order_id   = (int) $opencart_order['order_id'];
+        $paynet_id  = (string) $paynet_transaction->getPayment()->getPaynetId();
+
+        if (!$paynet_transaction->isApproved() || !ctype_digit($paynet_id))
+        {
+            return;
+        }
+
+        $prefix = $this->getPaymentNotePrefix($paynet_id);
+
+        // The payment is the one that paid the order, or it is already noted
+        if ($this->countOrderNotes($order_id, $prefix . '%') > 0)
+        {
+            return;
+        }
+
+        // Orders paid by an older version of the module have no note of the payment:
+        // an order with a single payment attempt was paid by this attempt
+        $is_paid = (int) $opencart_order['order_status_id'] === (int) $this->getModuleConfigValue('order_success_status');
+
+        if (    $is_paid
+            &&  $this->countOrderNotes($order_id, $this->getPaymentNotePrefix('%') . 'approved') == 0
+            &&  $this->countPaymentAttempts($order_id) <= 1)
+        {
+            return;
+        }
+
+        $this->addOrderNote(
+            $order_id,
+            $opencart_order['order_status_id'],
+            $prefix . 'was approved, but the order already had a payment result. ' .
+            'The order status was not changed, check the payment.'
+        );
+
+        $this->log->write("PaynetEasy: payment {$paynet_id} approved for order {$order_id}, which already had a payment result");
+    }
+
+    /**
+     * Beginning of an order history note about a gateway payment
+     *
+     * @param       string      $paynet_id      PaynetEasy payment id
+     *
+     * @return      string
+     */
+    protected function getPaymentNotePrefix($paynet_id)
+    {
+        return "PaynetEasy: payment {$paynet_id} ";
+    }
+
+    /**
+     * Number of order history notes that match the pattern
+     *
+     * @param       integer     $order_id       Order ID
+     * @param       string      $pattern        LIKE pattern of the note
+     *
+     * @return      integer
+     */
+    protected function countOrderNotes($order_id, $pattern)
+    {
+        $result = $this->db->query
+        ("
+            SELECT COUNT(*) AS `total`
+            FROM `" . DB_PREFIX . "order_history`
+            WHERE `order_id` = '" . (int) $order_id . "'
+              AND `comment` LIKE '{$this->db->escape($pattern)}'
+        ");
+
+        return (int) $result->row['total'];
+    }
+
+    /**
+     * Number of payment attempts of the order
+     *
+     * @param       integer     $order_id       Order ID
+     *
+     * @return      integer
+     */
+    protected function countPaymentAttempts($order_id)
+    {
+        $result = $this->db->query
+        ("
+            SELECT COUNT(*) AS `total`
+            FROM `" . DB_PREFIX . "payneteasy_form_payment`
+            WHERE `client_id` = '" . (int) $order_id . "'
+        ");
+
+        return (int) $result->row['total'];
+    }
+
+    /**
+     * Adds a note to the order history. The order status and stock
+     * are not changed, the customer is not notified.
+     *
+     * @param       integer     $order_id       Order ID
+     * @param       integer     $status_id      Order status shown with the note
+     * @param       string      $comment        Note
+     */
+    protected function addOrderNote($order_id, $status_id, $comment)
+    {
+        $this->db->query
+        ("
+            INSERT INTO `" . DB_PREFIX . "order_history`
+            SET `order_id`        = '" . (int) $order_id . "',
+                `order_status_id` = '" . (int) $status_id . "',
+                `notify`          = '0',
+                `comment`         = '{$this->db->escape($comment)}',
+                `date_added`      = NOW()
+        ");
+    }
+
+    /**
+     * Takes the lock of the order, waits for it up to 15 seconds
+     *
+     * @param       integer     $order_id       Order ID
+     *
+     * @throws      RuntimeException            The lock is held by another request
+     */
+    protected function lockOrder($order_id)
+    {
+        $result = $this->db->query("SELECT GET_LOCK('{$this->db->escape($this->getOrderLockName($order_id))}', 15) AS `locked`");
+
+        if ((int) $result->row['locked'] !== 1)
+        {
+            throw new RuntimeException("Order '" . (int) $order_id . "' is being processed by another request");
+        }
+    }
+
+    /**
+     * Releases the lock of the order
+     *
+     * @param       integer     $order_id       Order ID
+     */
+    protected function unlockOrder($order_id)
+    {
+        $this->db->query("SELECT RELEASE_LOCK('{$this->db->escape($this->getOrderLockName($order_id))}')");
+    }
+
+    /**
+     * Name of the order lock, unique for the shop database
+     *
+     * @param       integer     $order_id       Order ID
+     *
+     * @return      string
+     */
+    protected function getOrderLockName($order_id)
+    {
+        return substr(DB_DATABASE . '.' . DB_PREFIX, 0, 30) . 'payneteasy_order_' . (int) $order_id;
     }
 
     /**
@@ -210,10 +419,33 @@ class ModelPaymentPayneteasyForm extends Model
         $order_id   = $opencart_order['order_id'];
         $status_id  = $this->getModuleConfigValue('order_failure_status');
 
-        $this
-            ->model_checkout_order
-            ->update($order_id, $status_id, $message)
-        ;
+        if ((int) $opencart_order['order_status_id'] !== 0)
+        {
+            $this
+                ->model_checkout_order
+                ->update($order_id, $status_id, $message)
+            ;
+
+            return;
+        }
+
+        // The order is not confirmed yet and update() skips such orders.
+        // confirm() is not used: it takes the products from stock and sends
+        // the order mail. The status is set directly, the order becomes
+        // visible to the merchant with the reason in its history.
+        $this->db->query
+        ("
+            UPDATE `" . DB_PREFIX . "order`
+            SET `order_status_id` = '" . (int) $status_id . "',
+                `date_modified`   = NOW()
+            WHERE `order_id` = '" . (int) $order_id . "'
+              AND `order_status_id` = '0'
+        ");
+
+        if ($this->db->countAffected() > 0)
+        {
+            $this->addOrderNote($order_id, $status_id, $message);
+        }
     }
 
     /**
